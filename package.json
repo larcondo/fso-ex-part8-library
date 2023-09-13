@@ -1,0 +1,15 @@
+{
+  "name": "library",
+  "version": "0.0.1",
+  "description": "Exercise from part 8 of fullstackopen course",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "larcondo",
+  "license": "ISC",
+  "dependencies": {
+    "@apollo/server": "^4.9.3",
+    "graphql": "^16.8.0"
+  }
+}
