@@ -54,20 +54,32 @@ const typeDefs = `
 
 const resolvers = {
   Query: {
-    bookCount: () => books.length,
-    authorCount: () => authors.length,
-    allBooks: (root, args) => {
-      if (!args.author && !args.genre) return books
+    bookCount: async () => Book.collection.countDocuments(),
+    authorCount: () => Author.collection.countDocuments(),
+    allBooks: async (root, args) => {
+      const books = await Book.find({}).populate('author')
+      if (!args.author && !args.genre)
+        return books
 
-      return (!args.author) 
-        ? books.filter( b => b.genres.includes(args.genre)) 
-        : (!args.genre) 
-          ? books.filter(b => b.author === args.author)
-          : books.filter(b => b.author === args.author && b.genres.includes(args.genre))
+      return (!args.author)
+        ? books.filter( b => b.genres.includes(args.genre))
+        : (!args.genre)
+          ? books.filter(b => b.author.name === args.author)
+          : books.filter(b => b.author.name === args.author && b.genres.includes(args.genre))
     },
-    allAuthors: () => authors.map( a => {
-      return {...a, bookCount: books.filter( b => b.author === a.name).length }
-    })
+    allAuthors: async () => {
+      // SE PODRIA RESOLVER DE OTRA MANERA
+      const authors = await Author.find({})
+      const books = await Book.find({})
+
+      return authors.map( a => {
+        return {
+          ...a._doc, 
+          id: a._id.toString(),
+          bookCount: books.filter(b => b.author.toString() === a._id.toString()).length
+        }
+      })
+    }
   },
   Mutation: {
     addBook: async (root, args) => {
@@ -94,13 +106,18 @@ const resolvers = {
 
       return book
     },
-    editAuthor: (root, args) => {
-      const author = authors.find(a => a.name === args.name)
+    editAuthor: async (root, args) => {
+      const author = await Author.findOne({ name: args.name })
       if (!author) return null
 
-      const updatedAuthor = { ...author, born: args.setBornTo }
-      authors = authors.map( a => a.name === args.name ? updatedAuthor : a)
-      return updatedAuthor
+      try {
+        author.born = args.setBornTo
+        await author.save()
+      } catch(error) {
+        throw new GraphQLError('Updating Author failed')
+      }
+
+      return author
     }
   }
 }
