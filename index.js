@@ -1,6 +1,5 @@
 const { ApolloServer } = require('@apollo/server')
 const { startStandaloneServer } = require('@apollo/server/standalone')
-const { v1: uuid } = require('uuid')
 const mongoose = require('mongoose')
 const Book = require('./models/book')
 const Author = require('./models/author')
@@ -11,9 +10,6 @@ mongoose.set('strictQuery', false)
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('connected to MongoDB'))
   .catch( error => console.log('error connecting to MongoBD:', error.message ))
-
-let authors = []
-let books = []
 
 const typeDefs = `
   type Book {
@@ -55,7 +51,7 @@ const typeDefs = `
 const resolvers = {
   Query: {
     bookCount: async () => Book.collection.countDocuments(),
-    authorCount: () => Author.collection.countDocuments(),
+    authorCount: async () => Author.collection.countDocuments(),
     allBooks: async (root, args) => {
       const books = await Book.find({}).populate('author')
       if (!args.author && !args.genre)
@@ -87,7 +83,17 @@ const resolvers = {
 
       const newAuthor = new Author({ name: args.author, born: null })
       if (!author) {
-        await newAuthor.save()
+        try {
+          await newAuthor.save()
+        } catch (error) {
+          throw new GraphQLError('Saving author failed', {
+            extensions: {
+              code: 'BAD_USER_INPUT',
+              invalidArgs: args.author,
+              error
+            }
+          })
+        }
       }
 
       const book = new Book({ ...args, author: author ? author : newAuthor })
@@ -114,7 +120,13 @@ const resolvers = {
         author.born = args.setBornTo
         await author.save()
       } catch(error) {
-        throw new GraphQLError('Updating Author failed')
+        throw new GraphQLError('Updating Author failed', {
+          extensions: {
+            code: 'BAD_USER_INPUT',
+            invalidArgs: args.setBornTo,
+            error
+          }
+        })
       }
 
       return author
