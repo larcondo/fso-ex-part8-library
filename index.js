@@ -64,7 +64,7 @@ const typeDefs = `
     ): User
     login (
       username: String!
-      password: String
+      password: String!
     ): Token
   }
 `
